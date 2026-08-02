@@ -1,0 +1,53 @@
+#cloud-config
+# 実体の user-data は機密入りのためコミット禁止 (.gitignore 済み)。使い方は ../README.md 参照。
+# 初回起動後も /boot/firmware/user-data に平文で残るため、機材の返却・貸与時は必ず削除する。
+
+hostname: ambient-pi
+
+# pi ユーザーのパスワード (イメージ焼き込みの仮パスワードを上書きする)
+chpasswd:
+  expire: false
+  users:
+    - name: pi
+      password: changeme
+      type: text
+
+ssh_pwauth: true
+
+write_files:
+  # Wi-Fi 接続 (NetworkManager)。有線のみで使う場合はこのエントリを削除する
+  - path: /etc/NetworkManager/system-connections/wifi.nmconnection
+    owner: root:root
+    permissions: '0600'
+    content: |
+      [connection]
+      id=wifi
+      type=wifi
+      interface-name=wlan0
+      autoconnect=true
+
+      [wifi]
+      mode=infrastructure
+      ssid=YOUR_SSID
+
+      [wifi-security]
+      key-mgmt=wpa-psk
+      psk=YOUR_PASSWORD
+
+      [ipv4]
+      method=auto
+
+      [ipv6]
+      method=auto
+
+  # agent / bridge 用の環境変数 (API キー等)
+  - path: /home/pi/.env
+    owner: pi:pi
+    permissions: '0600'
+    content: |
+      OPENAI_API_KEY=sk-your-key-here
+      BOCCO_REFRESH_TOKEN=your-refresh-token-here
+
+runcmd:
+  # 配置した .nmconnection を NetworkManager に読み込ませる
+  - nmcli connection reload || true

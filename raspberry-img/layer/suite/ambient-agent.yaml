@@ -1,0 +1,25 @@
+# METABEGIN
+# X-Env-Layer-Name: ambient-agent
+# X-Env-Layer-Desc: Ambient Agent Pi (Bookworm headless)
+# X-Env-Layer-Version: 1.0.0
+# X-Env-Layer-Requires: bookworm-minbase, agent-packages, agent-base-setup
+# METAEND
+---
+mmdebstrap:
+  suite: bookworm
+  architectures:
+    - arm64
+  # rpi-image-gen は customize フェーズの最後に rootfs-overlay を自前でコピーする。
+  # 以下はその後に走る必要があるため customize-hooks ではなく cleanup-hooks に置く
+  cleanup-hooks:
+    # overlay のコピーは root 所有になるため戻す
+    - 'chroot "$1" chown -R pi:pi /home/pi'
+    # .gitkeep は空ディレクトリを git に載せるためだけのもので、イメージには要らない
+    - 'rm -f "$1/.gitkeep"'
+    # ds-identify は datasource 設定の seedfrom を見ず /boot/firmware/ も探索しないため、
+    # cmdline で明示しないと cloud-init 自体が起動せず headless では復旧手段が無くなる。
+    # boot-firmware レイヤが cmdline.txt を配置した後に実行する必要があるため cleanup-hook に置く
+    - 'sed -i "1s|\$| ds=nocloud|" "$1/boot/firmware/cmdline.txt"'
+    # 国コード未設定だと "world" ドメインになり 5GHz 全域と 2.4GHz ch12-13 が使えない。
+    # NetworkManager は regdom を設定しないため、Wi-Fi 接続より先に効くカーネル引数で指定する
+    - 'sed -i "1s|\$| cfg80211.ieee80211_regdom=JP|" "$1/boot/firmware/cmdline.txt"'

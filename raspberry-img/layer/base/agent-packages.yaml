@@ -1,0 +1,52 @@
+# METABEGIN
+# X-Env-Layer-Name: agent-packages
+# X-Env-Layer-Desc: Headless system packages for Ambient Agent Pi
+# X-Env-Layer-Version: 1.0.0
+# METAEND
+---
+mmdebstrap:
+  packages:
+    # === Raspberry Pi システム統合 ===
+    - raspberrypi-sys-mods
+    - raspberrypi-net-mods
+    - raspi-firmware
+    - raspi-utils
+
+    # === Wi-Fi / ネットワーク ===
+    - firmware-brcm80211
+    - firmware-misc-nonfree
+    - wireless-regdb
+    - wpasupplicant
+    - network-manager
+    - iproute2
+    - avahi-daemon
+    - rfkill
+
+    # === cloud-init ===
+    - cloud-init
+    - cloud-guest-utils
+
+    # === 基本ツール ===
+    - ssh
+    - sudo
+    - ca-certificates
+    - git
+    - curl
+    - vim
+    - htop
+    - jq
+    - less
+    - unzip
+    - xz-utils
+    - bash-completion
+
+    # Wi-Fi の規制ドメイン確認・チャネル診断に使う (5GHz が繋がらない時の切り分け)
+    - iw
+
+    # === Python (bridge / agent 基盤が Python の場合) ===
+    - python3
+    - python3-venv
+    - python3-pip
+
+    # Node.js は agent-base-setup.yaml の customize-hook で導入 (ADR 0002)
+    # TODO(インターン): 選定した agent 基盤が他に必要とするパッケージをここに追加する

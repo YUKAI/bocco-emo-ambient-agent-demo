@@ -1,0 +1,28 @@
+services:
+  apt_cache:
+    image: debian:trixie-slim
+    command: >
+      bash -c "
+        apt-get update &&
+        DEBIAN_FRONTEND=noninteractive apt-get install -y apt-cacher-ng &&
+        chmod 777 /var/cache/apt-cacher-ng &&
+        /usr/sbin/apt-cacher-ng -c /etc/apt-cacher-ng ForeGround=1
+      "
+    volumes:
+      - apt-cache:/var/cache/apt-cacher-ng
+    expose:
+      - "3142"
+
+  rpi_imagegen:
+    build: .
+    privileged: true
+    stdin_open: true
+    tty: true
+    image: rpi-imagegen:latest
+    depends_on:
+      - apt_cache
+    volumes:
+      - ./:/home/imagegen/project
+
+volumes:
+  apt-cache:

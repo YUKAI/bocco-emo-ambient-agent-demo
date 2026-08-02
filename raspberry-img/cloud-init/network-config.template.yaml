@@ -1,0 +1,8 @@
+# 有線 (eth0) の DHCP のみ。Wi-Fi は user-data の write_files (.nmconnection) 側で設定する。
+# 使い方: cp network-config.template.yaml network-config
+network:
+  version: 2
+  renderer: NetworkManager
+  ethernets:
+    eth0:
+      dhcp4: true

@@ -1,0 +1,46 @@
+# METABEGIN
+# X-Env-Layer-Name: agent-base-setup
+# X-Env-Layer-Desc: Base system setup (TZ, locale, SSH, cloud-init, pi user)
+# X-Env-Layer-Version: 1.0.0
+# METAEND
+---
+mmdebstrap:
+  customize-hooks:
+    - 'chroot "$1" ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime'
+    - 'echo "Asia/Tokyo" > "$1/etc/timezone"'
+    - 'chroot "$1" sed -i "s/^# *ja_JP.UTF-8/ja_JP.UTF-8/" /etc/locale.gen'
+    - 'chroot "$1" locale-gen'
+    - 'chroot "$1" update-locale LANG=ja_JP.UTF-8'
+    - '$BDEBSTRAP_HOOKS/enable-units "$1" ssh'
+    # systemd-networkd-wait-online を無効化 (NetworkManager を使うため不要、タイムアウトで起動が遅くなる)
+    - 'chroot "$1" systemctl disable systemd-networkd-wait-online.service || true'
+    - '$BDEBSTRAP_HOOKS/enable-units "$1" cloud-init-local cloud-init cloud-config cloud-final'
+    # cloud-init disabled ファイルを削除 (raspberrypi-sys-mods が作成する場合がある)
+    - 'rm -f "$1/etc/cloud/cloud-init.disabled"'
+    # NoCloud データソース設定 (boot パーティションの user-data を読む)
+    - 'mkdir -p "$1/etc/cloud/cloud.cfg.d"'
+    - |
+      cat > "$1/etc/cloud/cloud.cfg.d/99-nocloud.cfg" <<'CLOUDEOF'
+      datasource_list: [ NoCloud ]
+      datasource:
+        NoCloud:
+          seedfrom: /boot/firmware/
+      CLOUDEOF
+    # pi ユーザー作成 + 仮パスワード (実パスワードは cloud-init の chpasswd で上書きする)
+    - 'chroot "$1" useradd -m -s /bin/bash -G sudo,audio,video,plugdev,input pi || true'
+    - 'echo "pi:raspberry" | chroot "$1" chpasswd'
+    # apt の nodejs は v18 で agent 基盤の要件 (22+) を満たさないため tarball で導入 (ADR 0002)
+    # 系列は手で上げる: v24 は 2026-10-20 に maintenance 入り、v26 が 2026-10-28 に LTS 化予定
+    - |
+      set -eu
+      nodedir=$(mktemp -d)
+      curl -fsSL -o "$nodedir/SHASUMS256.txt" https://nodejs.org/dist/latest-v24.x/SHASUMS256.txt
+      nodetar=$(grep -o 'node-v[0-9.]*-linux-arm64\.tar\.xz' "$nodedir/SHASUMS256.txt" | sort -u)
+      # latest-v24.x は可変エイリアス。2 回に分けて取ると間に新パッチが出て
+      # checksum と tarball が食い違うため、SHASUMS から解決したバージョンに固定して取得する
+      nodever=$(echo "$nodetar" | grep -o 'v[0-9.]*[0-9]')
+      curl -fsSL -o "$nodedir/$nodetar" "https://nodejs.org/dist/$nodever/$nodetar"
+      (cd "$nodedir" && grep "$nodetar" SHASUMS256.txt | sha256sum -c -)
+      tar -xJf "$nodedir/$nodetar" -C "$1/usr/local" --strip-components=1 \
+        --exclude=CHANGELOG.md --exclude=LICENSE --exclude=README.md
+      rm -rf "$nodedir"
