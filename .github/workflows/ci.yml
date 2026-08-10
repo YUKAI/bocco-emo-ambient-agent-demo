@@ -1,0 +1,144 @@
+name: CI
+
+# Everything here runs against fakes: no BOCCO token, no Hermes, no network.
+# A job that needs a secret or a robot does not belong in this file — the
+# hardware checks live in scripts/check-bridge.sh and are run against the Pi.
+
+# `pull_request`, never `pull_request_target`. The latter runs the base
+# branch's workflow with this repository's secrets in scope against a fork's
+# code, so a stranger could open a pull request that exfiltrates them. This
+# project's deployment holds BOCCO OAuth tokens and an OpenAI key.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: every job only reads the checkout. None writes to the
+# repository, comments, or publishes, so nothing else is granted.
+permissions:
+  contents: read
+
+# A new push to a pull request makes the previous run's answer worthless.
+# On main every commit keeps its own result, because that is the history
+# someone bisects later.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    name: tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # Both versions run even when one fails: "3.11 only" and "both" are
+      # different bugs, and cancelling the sibling hides which one this is.
+      fail-fast: false
+      matrix:
+        # 3.11 is what the robot runs (Debian 12 bookworm, python3.11.2), so
+        # it is the version that decides whether a change can be deployed.
+        # 3.14 is what the development machines run. The gap between them is
+        # wide enough to hide a real difference, and pyproject declares
+        # requires-python = ">=3.11", so both ends are a promise this checks.
+        python-version: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: bridge/pyproject.toml
+
+      # A plain install, not editable, because that is what the Pi does:
+      # `pip install --no-deps /home/pi/bocco-runtime/bridge`. It therefore
+      # also proves the hatchling build still works — a bad wheel target or a
+      # missing bridge/README.md fails here rather than during a deployment.
+      # The suite itself runs from source; test-bridge.sh pins PYTHONPATH.
+      - name: Install the bridge package
+        run: python -m pip install --disable-pip-version-check ./bridge
+
+      - name: Bridge suite
+        run: scripts/test-bridge.sh
+
+      # The same suite again with no usable locale. `open()` and
+      # `Path.read_text()` default to the locale's encoding, which is ASCII
+      # under C/POSIX, and many files these tests read contain Japanese —
+      # eleven tests errored this way before the encodings were made explicit.
+      # Developers have a UTF-8 locale and never see it. Asserting it here is
+      # what keeps the repair from decaying one new call site at a time.
+      # PYTHONCOERCECLOCALE=0 defeats PEP 538's C-locale coercion, which would
+      # otherwise quietly paper over the thing being checked.
+      - name: Bridge suite (POSIX locale)
+        env:
+          LC_ALL: C
+          LANG: C
+          PYTHONCOERCECLOCALE: '0'
+          PYTHONUTF8: '0'
+        run: scripts/test-bridge.sh
+
+      # scripts/test-bridge.sh deliberately covers only bridge/tests. The
+      # image-build tests live in a separate tree and nothing ran them.
+      - name: Image config tests
+        run: python -m unittest discover -s raspberry-img/tests -p 'test_*.py' -v
+
+  shell:
+    name: shell scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # Parse each script with the interpreter named in its own shebang before
+      # any linter reads it. scripts/ is POSIX sh — dash on Debian and on this
+      # runner — and raspberry-img/scripts/ is bash; checking a bash script
+      # with dash reports syntax errors that do not exist.
+      - name: Syntax
+        run: |
+          set -eu
+          status=0
+          for script in scripts/*.sh raspberry-img/scripts/*.sh; do
+            case "$(head -n 1 "$script")" in
+              *bash) parser=bash ;;
+              *)     parser=sh ;;
+            esac
+            if ! "$parser" -n "$script"; then
+              echo "::error file=$script::$parser could not parse this script"
+              status=1
+            fi
+          done
+          exit "$status"
+
+      # These scripts run as root on a machine someone is setting up for the
+      # first time, and their failures are the expensive kind.
+      #
+      # ShellCheck is the copy preinstalled on the GitHub-hosted runner, not a
+      # Marketplace action: a workflow that checks out pull-request code should
+      # not also carry an unpinned third-party dependency.
+      #
+      # Nothing is excluded. SC1007 fired on `CDPATH= cd -- ...`, the POSIX
+      # one-shot assignment these scripts use to neutralise a user's CDPATH for
+      # exactly one command; it is written `CDPATH='' cd` instead, which is the
+      # same thing and is what ShellCheck itself suggests. Fixing three lines
+      # beat switching a check off repository-wide.
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck scripts/*.sh raspberry-img/scripts/*.sh
+
+  hermes-stdlib:
+    name: hermes scripts are stdlib-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      # Deliberately no pip install step: the point is that these scripts run
+      # under an interpreter this repository does not control.
+      - name: Check imports
+        run: python scripts/check-hermes-stdlib.py

@@ -37,5 +37,5 @@ cloud-init では遅い。カーネルコマンドラインで指定している
   どちらも消す手順は `raspberry-img/README.md`
 - **この方式はカーネルコマンドライン引数 2 つ (`ds=nocloud` / `cfg80211.ieee80211_regdom=JP`) に依存する。**
   どちらも消すと壊れるため、理由は `layer/suite/ambient-agent.yaml` の該当行にコメントで、
-  消えていないことの保証は `scripts/build.sh` の assert で担保している
+  消えていないことの保証は `raspberry-img/scripts/build.sh` の assert で担保している
 - Pi 5 (`device.layer: rpi5`) 前提。別モデルでは layer の変更が要る

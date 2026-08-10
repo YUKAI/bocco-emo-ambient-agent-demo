@@ -19,17 +19,16 @@ fi
 if [ ! -f "$USERDATA_PATH" ]; then
     echo "エラー: user-data が見つかりません: $USERDATA_PATH"
     echo ""
-    echo "テンプレートからコピーしてシークレットを記入してください:"
-    echo "  cp cloud-init/user-data.template.yaml cloud-init/user-data"
-    echo "  vim cloud-init/user-data"
+    echo "リポジトリ直下の .env を設定し、cloud-init を生成してください:"
+    echo "  python3 ${SCRIPT_DIR}/render_config.py"
     exit 1
 fi
 
 if [ ! -f "$NETWORK_CONFIG_PATH" ]; then
     echo "エラー: network-config が見つかりません: $NETWORK_CONFIG_PATH"
     echo ""
-    echo "テンプレートからコピーしてください:"
-    echo "  cp cloud-init/network-config.template.yaml cloud-init/network-config"
+    echo "リポジトリ直下の .env から cloud-init を生成してください:"
+    echo "  python3 ${SCRIPT_DIR}/render_config.py"
     exit 1
 fi
 

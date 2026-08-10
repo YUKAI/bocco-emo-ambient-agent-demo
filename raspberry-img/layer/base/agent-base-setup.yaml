@@ -26,9 +26,10 @@ mmdebstrap:
         NoCloud:
           seedfrom: /boot/firmware/
       CLOUDEOF
-    # pi ユーザー作成 + 仮パスワード (実パスワードは cloud-init の chpasswd で上書きする)
+    # pi ユーザー作成。cloud-init が実パスワードを設定するまでアカウントはロックする。
+    # 既知の仮パスワードを入れると、cloud-init 失敗時に SSH が開いた状態になる。
     - 'chroot "$1" useradd -m -s /bin/bash -G sudo,audio,video,plugdev,input pi || true'
-    - 'echo "pi:raspberry" | chroot "$1" chpasswd'
+    - 'chroot "$1" passwd --lock pi'
     # apt の nodejs は v18 で agent 基盤の要件 (22+) を満たさないため tarball で導入 (ADR 0002)
     # 系列は手で上げる: v24 は 2026-10-20 に maintenance 入り、v26 が 2026-10-28 に LTS 化予定
     - |

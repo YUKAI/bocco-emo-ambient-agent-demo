@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bocco-bridge"
+version = "0.1.0"
+description = "Local BOCCO emo to Hermes bridge runtime"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "aiohttp>=3.9,<4",
+  "httpx>=0.27,<1",
+]
+
+[project.scripts]
+bocco-bridge = "bocco_bridge.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bocco_bridge"]
+
+# No pytest configuration on purpose. Every test in this repository is
+# unittest, and scripts/test-bridge.sh is the only supported entry point;
+# a pytest block would document a second runner that collects differently.

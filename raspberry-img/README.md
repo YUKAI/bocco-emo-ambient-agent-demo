@@ -9,18 +9,68 @@ Ambient Agent 用 Raspberry Pi 5 の OS イメージ (headless) を [rpi-image-g
 
 ## 使い方
 
+### 1. 設定する
+
+リポジトリ直下の `.env` だけを編集する。API キーや Wi-Fi 認証情報を
+`user-data` やソースコードに直接書かない。
+
+```bash
+cd /path/to/bocco-emo-ambient-agent-demo
+test -e .env || cp .env.example .env
+${EDITOR:-vim} .env
+```
+
+`.env` の主な項目:
+
+| 変数 | 必須 | 用途 |
+|---|---:|---|
+| `PI_HOSTNAME` | Yes | Pi の mDNS ホスト名 (`ambient-pi.local` の前半) |
+| `PI_PASSWORD` | Yes | `pi` ユーザの初回パスワード (12 文字以上) |
+| `WIFI_SSID` / `WIFI_PASSWORD` | No | 両方が空なら Ethernet 専用 |
+| `OPENAI_API_KEY` | Yes | agent が OpenAI API を使うためのキー |
+| `BOCCO_REFRESH_TOKEN` | Yes | BOCCO access token の更新に使う長期トークン |
+| `BOCCO_ACCESS_TOKEN` | No | 初回起動時の access token。空なら refresh token から取得する |
+| `BOCCO_ROOM_UUID` | No | 空なら room 一覧 API で取得する |
+| `DISCORD_BOT_TOKEN` | No | Discord 連携を有効にするとき必要 |
+| `AGENT_WEBHOOK_TOKEN` | No | agent の webhook を公開する前に必ず設定 |
+
+`BOCCO_ACCESS_TOKEN` は短期トークンのため、新規実装は `BOCCO_REFRESH_TOKEN` を起点に
+更新する。refresh 後に返る新しい refresh token も Pi 上の永続ストアへ保存すること。
+
+### 2. カスタマイズ済みイメージを作る
+
+次の 1 コマンドが、`.env` の検証、イメージビルド、cloud-init 生成、イメージへの注入を
+順番に行う:
+
+```bash
+bash raspberry-img/scripts/customize-and-build.sh
+```
+
+既に `raspberry-img/deploy/ambient-agent-pi.img` があり、OS レイヤーを再ビルドせずに `.env`
+の内容だけを注入し直す場合:
+
+```bash
+bash raspberry-img/scripts/customize-and-build.sh --reuse-image
+```
+
+設定の検証だけしたい場合:
+
+```bash
+python3 raspberry-img/scripts/render_config.py --check
+```
+
+個別に実行する場合:
+
 1. イメージビルド (`deploy/ambient-agent-pi.img` が生成される):
 
    ```bash
    bash scripts/build.sh
    ```
 
-2. cloud-init 設定を作成 (機密入り、コミット禁止・`.gitignore` 済み):
+2. `.env` から cloud-init 設定を生成 (機密入り、コミット禁止):
 
    ```bash
-   cp cloud-init/user-data.template.yaml cloud-init/user-data
-   cp cloud-init/network-config.template.yaml cloud-init/network-config
-   vim cloud-init/user-data   # パスワード・Wi-Fi SSID/PSK・API キーを記入
+   python3 scripts/render_config.py
    ```
 
 3. cloud-init を `.img` に注入:
@@ -31,7 +81,9 @@ Ambient Agent 用 Raspberry Pi 5 の OS イメージ (headless) を [rpi-image-g
 
    代替: SD 書き込み後に boot パーティション (FAT32) を Mac でマウントし、`user-data` / `network-config` / `meta-data` を直接コピーしてもよい (`meta-data` は `instance-id: <任意のユニーク文字列>` の 1 行)。
 
-4. SD カード検出と書き込み:
+### 3. SD カードに書き込む
+
+SD カード検出と書き込み:
 
    ```bash
    bash scripts/detect-sd.sh
@@ -40,7 +92,9 @@ Ambient Agent 用 Raspberry Pi 5 の OS イメージ (headless) を [rpi-image-g
    diskutil eject /dev/diskN
    ```
 
-5. Pi を起動して SSH 接続を確認:
+### 4. Pi を起動する
+
+Pi を起動して SSH 接続を確認:
 
    ```bash
    ssh pi@ambient-pi.local
@@ -89,6 +143,9 @@ cloudflared tunnel --url http://127.0.0.1:8787
 
 ## 注意
 
+- 機密情報の編集先はリポジトリ直下の `.env` だけ。`.env.example` に実値を書かない
+- `render_config.py` は `.env`、生成した `user-data` / `network-config` を mode 0600 にする
+- 注入前のベースイメージでは `pi` アカウントをロック済み。必ず cloud-init 注入後のイメージを SD に書く
 - `cloud-init/user-data` と `cloud-init/network-config` は機密を含むためコミットしない (テンプレートのみコミット)
 - 初回起動後も `/boot/firmware/user-data` に機密が**平文で残る**。機材の返却・貸与時は必ず削除する
 - `inject-cloud-init.sh` は `deploy/ambient-agent-pi.img` 自体に機密を書き込む。`.gitignore` 済みなので

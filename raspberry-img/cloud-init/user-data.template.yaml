@@ -1,53 +1,31 @@
 #cloud-config
-# 実体の user-data は機密入りのためコミット禁止 (.gitignore 済み)。使い方は ../README.md 参照。
-# 初回起動後も /boot/firmware/user-data に平文で残るため、機材の返却・貸与時は必ず削除する。
+# This is a tracked template. Do not put real credentials in this file.
+# render_config.py fills the placeholders from the git-ignored root .env.
+# The generated user-data remains on /boot/firmware in readable form, so it
+# must be removed before the device is returned or handed to somebody else.
 
-hostname: ambient-pi
+hostname: __PI_HOSTNAME_YAML__
 
-# pi ユーザーのパスワード (イメージ焼き込みの仮パスワードを上書きする)
+# Unlock the base image's locked pi account by assigning the local password.
 chpasswd:
   expire: false
   users:
     - name: pi
-      password: changeme
+      password: __PI_PASSWORD_YAML__
       type: text
 
 ssh_pwauth: true
 
 write_files:
-  # Wi-Fi 接続 (NetworkManager)。有線のみで使う場合はこのエントリを削除する
-  - path: /etc/NetworkManager/system-connections/wifi.nmconnection
-    owner: root:root
-    permissions: '0600'
-    content: |
-      [connection]
-      id=wifi
-      type=wifi
-      interface-name=wlan0
-      autoconnect=true
-
-      [wifi]
-      mode=infrastructure
-      ssid=YOUR_SSID
-
-      [wifi-security]
-      key-mgmt=wpa-psk
-      psk=YOUR_PASSWORD
-
-      [ipv4]
-      method=auto
-
-      [ipv6]
-      method=auto
-
-  # agent / bridge 用の環境変数 (API キー等)
+__WIFI_WRITE_FILE__
+  # Runtime configuration for the agent and bridge. The content is Base64 to
+  # keep arbitrary token characters from breaking YAML; Base64 is not encryption.
   - path: /home/pi/.env
     owner: pi:pi
     permissions: '0600'
-    content: |
-      OPENAI_API_KEY=sk-your-key-here
-      BOCCO_REFRESH_TOKEN=your-refresh-token-here
+    encoding: b64
+    content: __RUNTIME_ENV_B64__
 
 runcmd:
-  # 配置した .nmconnection を NetworkManager に読み込ませる
+  # Load the generated NetworkManager connection, if Wi-Fi was configured.
   - nmcli connection reload || true

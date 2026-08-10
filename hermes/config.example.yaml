@@ -1,0 +1,61 @@
+# API-only Hermes profile for the BOCCO emo bridge.
+#
+# Installed by scripts/install-hermes.sh as
+# /var/lib/hermes-agent/.hermes/config.yaml, owner hermes-agent, mode 0600.
+# The installer never overwrites an existing config.yaml, so local tuning on a
+# running Pi survives a re-run.
+#
+# The injected environment file enables the Responses API on 127.0.0.1:8642
+# and supplies OPENAI_API_KEY plus API_SERVER_KEY. No messaging or Webhook
+# platform adapter is configured here.
+
+# REQUIRED. Do not delete this block and do not leave the file empty.
+#
+# With no `model.provider`, Hermes auto-detects the provider from the shape of
+# the environment and reads OPENAI_API_KEY as an *OpenRouter* key. Every
+# request then fails 401 against api.openai.com, and the failure surfaces as a
+# generic upstream error rather than a configuration mistake. Pinning the
+# provider is the whole reason this file must exist before first start.
+model:
+  provider: openai-api
+  default: gpt-5.6-luna
+  max_tokens: 1000
+
+agent:
+  # Latency, not quality, is the binding constraint on a speech robot: the
+  # reply is spoken aloud a sentence at a time.
+  reasoning_effort: low
+  # Prompt slimming for the ambient robot deployment. The persona arrives
+  # per-request via `instructions`; the blocks below are general-agent
+  # boilerplate this deployment does not need, and they cost roughly 4 KB of
+  # prompt on every single turn.
+  tool_use_enforcement: false        # enforcement + execution-discipline blocks
+  task_completion_guidance: false    # "Finishing the job" block
+  parallel_tool_call_guidance: false # parallel tool-call block
+  environment_probe: false           # python-toolchain probe line
+
+platform_hints:
+  # The bridge speaks this text through BOCCO emo. Markdown is not audible.
+  api_server:
+    replace: "Plain text only: no markdown, bullets, headers, or code fences. Reply with short, natural spoken-style sentences."
+
+platform_toolsets:
+  # `skills` reaches the scripts in ~/.hermes/skills, `memory` backs household
+  # memory. `no_mcp` keeps the loopback API from dialling out to MCP servers
+  # that this deployment does not run.
+  api_server:
+    - skills
+    - memory
+    - no_mcp
+
+compression:
+  enabled: true
+  # Hermes exposes no environment/request override for this server-side setting.
+  # Conservative default sized for a Pi. The reference deployment raised this
+  # to 40000 once conversations grew long enough to compress mid-session; that
+  # is local tuning, so edit the installed config.yaml rather than this example.
+  threshold_tokens: 8000
+  target_ratio: 0.20
+  protect_last_n: 20
+  min_tail_user_messages: 20
+  in_place: true

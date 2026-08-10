@@ -19,6 +19,7 @@ cleanup() {
     echo ""
     echo "コンテナを停止・削除中..."
     docker rm -f "${CONTAINER_NAME}" 2>/dev/null || true
+    docker compose stop apt_cache >/dev/null 2>&1 || true
 }
 
 trap cleanup EXIT
@@ -91,14 +92,14 @@ ls -lh "${DEPLOY_DIR}/${IMAGE_NAME}.img"
 
 echo ""
 echo "次のステップ:"
-echo "  1. cloud-init 設定ファイルを作成 (テンプレートから):"
-echo "     cp cloud-init/user-data.template.yaml cloud-init/user-data"
-echo "     cp cloud-init/network-config.template.yaml cloud-init/network-config"
-echo "  2. cloud-init 注入:"
-echo "     bash scripts/inject-cloud-init.sh"
-echo "  3. SDカード検出:"
-echo "     bash scripts/detect-sd.sh"
-echo "  4. SDカードに書き込み:"
+echo "  1. リポジトリ直下の .env を設定"
+echo "  2. .env から cloud-init を生成:"
+echo "     python3 ${SCRIPT_DIR}/render_config.py"
+echo "  3. cloud-init 注入:"
+echo "     bash ${SCRIPT_DIR}/inject-cloud-init.sh"
+echo "  4. SDカード検出:"
+echo "     bash ${SCRIPT_DIR}/detect-sd.sh"
+echo "  5. SDカードに書き込み:"
 echo "     diskutil unmountDisk /dev/diskN"
-echo "     sudo dd if=deploy/${IMAGE_NAME}.img of=/dev/rdiskN bs=4M status=progress"
+echo "     sudo dd if=${DEPLOY_DIR}/${IMAGE_NAME}.img of=/dev/rdiskN bs=4M status=progress"
 echo "     diskutil eject /dev/diskN"

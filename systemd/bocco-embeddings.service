@@ -1,0 +1,68 @@
+[Unit]
+Description=Local sentence-embedding service for BOCCO emo conversational memory
+Documentation=file:/opt/bocco-bridge/docs/design/semantic-retrieval.md
+# Not a dependency of the bridge in either direction. The bridge treats this
+# service as optional at every moment of its life: absent at boot, killed at
+# runtime, or merely slow, retrieval falls back to BM25 and replies continue.
+# Ordering it Before= the bridge would imply otherwise and buy nothing.
+After=network-online.target
+
+[Service]
+Type=simple
+User=bocco-embeddings
+Group=bocco-embeddings
+WorkingDirectory=/opt/bocco-embeddings
+EnvironmentFile=/etc/bocco-embeddings/embeddings.env
+ExecStart=/opt/bocco-embeddings/bin/llama-server \
+    --model /opt/bocco-embeddings/models/${EMBEDDING_MODEL_FILE} \
+    --alias ${EMBEDDING_MODEL_ALIAS} \
+    --embeddings --pooling mean \
+    --host 127.0.0.1 --port ${EMBEDDING_PORT} \
+    --threads ${EMBEDDING_THREADS} \
+    --ctx-size 512 --batch-size 512 --ubatch-size 512 \
+    --parallel 1
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=20s
+UMask=0077
+
+# THE REASON THIS SERVICE CAN NEVER COST A REPLY.
+#
+# Nice=10 puts it ten steps below the bridge and Hermes in CFS, which on Linux
+# is roughly a tenth of the weight: the moment the bridge's event loop becomes
+# runnable it preempts an encode in flight. CPUWeight is the cgroup-level
+# statement of the same thing. Neither is a limit on how fast an encode runs
+# when the machine is idle — which it is, at load 0.04 — only on who yields to
+# whom when it is not.
+#
+# EMBEDDING_THREADS defaults to 3 of the Pi 5's 4 cores. The fourth is not
+# reserved by the scheduler, it is simply never asked for, so the guarantee
+# above does not depend on the scheduler behaving as advertised.
+Nice=10
+CPUWeight=20
+IOWeight=20
+MemoryMax=1G
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+# Loopback only, and nothing else: this process has a 250k-token vocabulary and
+# no business talking to the internet. AF_UNIX is kept for the log socket.
+RestrictAddressFamilies=AF_UNIX AF_INET
+IPAddressAllow=localhost
+IPAddressDeny=any
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

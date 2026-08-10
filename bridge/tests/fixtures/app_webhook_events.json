@@ -1,0 +1,107 @@
+[
+  {
+    "kind": "speech",
+    "request_id": "00000000-0000-0000-0000-000000000001",
+    "uuid": "00000000-0000-0000-0000-000000000002",
+    "serial_number": "REDACTED",
+    "nickname": "テストユーザー",
+    "timestamp": 1785741230,
+    "event": "message.received",
+    "data": {
+      "message": {
+        "sequence": 20260803071350752,
+        "unique_id": "00000000-0000-0000-0000-000000000001",
+        "user": {
+          "uuid": "00000000-0000-0000-0000-000000000003",
+          "user_type": "member",
+          "nickname": "テストユーザー",
+          "profile_image": ""
+        },
+        "message": {
+          "ja": "テストです。"
+        },
+        "media": "audio",
+        "audio_url": "",
+        "image_url": "",
+        "lang": "en"
+      }
+    },
+    "receiver": "00000000-0000-0000-0000-000000000003"
+  },
+  {
+    "kind": "app_text",
+    "request_id": "00000000-0000-0000-0000-000000000004",
+    "uuid": "00000000-0000-0000-0000-000000000002",
+    "serial_number": "REDACTED",
+    "nickname": "テストユーザー",
+    "timestamp": 1785741827,
+    "event": "message.received",
+    "data": {
+      "message": {
+        "sequence": 20260803072347200,
+        "unique_id": "00000000-0000-0000-0000-000000000004",
+        "user": {
+          "uuid": "00000000-0000-0000-0000-000000000003",
+          "user_type": "member",
+          "nickname": "テストユーザー",
+          "profile_image": ""
+        },
+        "message": {
+          "ja": "テストです。"
+        },
+        "media": "text",
+        "audio_url": "",
+        "image_url": "",
+        "lang": "en"
+      }
+    },
+    "receiver": "00000000-0000-0000-0000-000000000003"
+  },
+  {
+    "kind": "motion",
+    "request_id": "00000000-0000-0000-0000-000000000006",
+    "uuid": "00000000-0000-0000-0000-000000000002",
+    "serial_number": "REDACTED",
+    "nickname": "テストユーザー",
+    "timestamp": 1785742226,
+    "event": "message.received",
+    "data": {
+      "message": {
+        "sequence": 20260803085026000,
+        "unique_id": "00000000-0000-0000-0000-000000000006",
+        "user": {
+          "uuid": "00000000-0000-0000-0000-000000000003",
+          "user_type": "member",
+          "nickname": "テストユーザー",
+          "profile_image": ""
+        },
+        "message": {
+          "ja": null
+        },
+        "media": "motion",
+        "audio_url": "",
+        "image_url": "",
+        "lang": "en"
+      }
+    },
+    "receiver": "00000000-0000-0000-0000-000000000003"
+  },
+  {
+    "kind": "radar",
+    "request_id": "00000000-0000-0000-0000-000000000005",
+    "uuid": "00000000-0000-0000-0000-000000000002",
+    "serial_number": "REDACTED",
+    "nickname": "テストユーザー",
+    "timestamp": 1785741640,
+    "event": "radar.detected",
+    "data": {
+      "radar": {
+        "begin": true,
+        "end": false,
+        "near_begin": false,
+        "near_end": false
+      }
+    },
+    "receiver": "00000000-0000-0000-0000-000000000003"
+  }
+]

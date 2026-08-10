@@ -12,6 +12,17 @@ dist/
 
 # Compiled Python bytecode
 *.py[cod]
+__pycache__/
+
+# Python virtualenvs and test caches (bridge/)
+# `.venv*/` rather than `.venv/`: the replication guide tells the reader to
+# build a throwaway `.venv-test` before transferring a pinned revision to the Pi.
+.venv*/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 
 # Log files
 *.log
@@ -54,5 +65,29 @@ raspberry-img/cloud-init/user-data
 raspberry-img/cloud-init/network-config
 
 # Secrets
+#
+# The bridge defaults its OAuth token file to oauth.json beside its database,
+# and its database path is only absolute once the service environment file is
+# loaded. Running it from a checkout without BOCCO_BRIDGE_DB set therefore
+# drops state.db, memory.db, transcript.db, repertoire.db and — critically —
+# an oauth.json holding live BOCCO access and refresh tokens into the working
+# tree. These patterns exist so that one `git add .` cannot publish them.
 .env
+*.env
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+oauth*.json
+# The token store writes atomically: it creates a `mkstemp` temporary file in
+# the same directory and renames it over oauth.json. That temporary is named
+# `.oauth.json.<random>` — a leading dot and a trailing suffix, so the two
+# patterns above miss it — and while it exists it holds a live access token and
+# a live refresh token. A crash between create and rename leaves it behind.
+.oauth*.json*
 
+# Local setup state
+.env.local
+.secrets-pending
